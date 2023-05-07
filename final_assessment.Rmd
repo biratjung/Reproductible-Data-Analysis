@@ -4,6 +4,8 @@ output: html_document
 date: "2023-05-03"
 ---
  
+u3245672
+Birat Jung Thapa
 
 # 1. Introduction
 
