@@ -1,0 +1,660 @@
+---
+title: "Reproducible Data Analysis"
+output: html_document
+date: "2023-05-03"
+---
+ 
+
+# 1. Introduction
+
+Basketball is a team sport played on a rectangular court with two hoops or baskets, one at each end of the court. The objective of the game is to shoot a ball through the opposing team's basket while preventing the other team from scoring in your own basket. Five players make up each team, and they are free to pass, dribble, or shoot the ball wherever on the floor. You can score points by putting the ball through the goal of the opposite team. A team can receive two points for a typical field goal, three points for a field goal made from beyond the three-point arc, and one point for each free throw they make. Basketball is played at all levels from youth leagues to professional leagues, and it is one of the most popular and widely watched sports in the world. The NBA (National Basketball Association) is the premier professional basketball league in the United States, while FIBA (International Basketball Federation) governs the sport internationally. (Logan, et al., 2023)
+
+The National Basketball Association, or NBA, is a professional basketball league comprised of 30 teams across North America and is regarded as the top basketball league in the world. The NBA was founded in 1946 as the Basketball Association of America (BAA) and adopted its current name in 1949 after merging with the National Basketball League (NBL). The league is divided into two conferences (Eastern and Western) and each conference has three divisions with five teams in each division. The regular season consists of 82 games for each team, which runs from October to April, followed by the playoffs, where the top eight teams from each conference compete in a knockout tournament to determine the NBA champion. (NBA, 2019)
+
+
+## 1.1. Positions in basketball
+
+In basketball, there are five positions: point guard, shooting guard, small forward, power forward, and center. Each position has its own set of responsibilities and physical requirements. (NBA, 2019)
+
+1. Point Guard (PG): Usually the smallest player on the team, the point guard is responsible for directing the team's offense, bringing the ball up the court, and setting up plays. They are typically fast and agile, with good ball-handling and passing skills.
+
+2. Shooting Guard (SG): The shooting guard is responsible for scoring points, both from outside the three-point line and by driving to the basket. They are typically taller than the point guard and have good shooting skills.
+
+3. Small Forward (SF): The small forward is a versatile player who can play both inside and outside. They are typically taller than the shooting guard and have a good combination of size, speed, and shooting ability.
+
+4. Power Forward (PF): The power forward is usually one of the tallest players on the team and is responsible for rebounding, defending the basket, and scoring points from inside the paint. They need to be strong and physical, with good jumping and dunking skills.
+
+5. Center (C): The center is the tallest player on the team and is responsible for defending the basket, rebounding, and scoring points from inside the paint. They need to be strong and physical, with good jumping and dunking skills. They are often the team's primary rim protector and help to anchor the team's defense.
+
+
+## 1.2. Introduction to dataset
+
+There is a total of three dataset used in this project, which is described in  data_description.txt.  ![](data_description.txt)
+
+Different stats of player are used to determine the best player in each position.
+
+1. PG: AST, TOV, STL, `X3P.`, PTS
+2. SG: `X3P.`, `FG.`, `eFG.`
+3. SF: TRB, `FG.`, X3P, `eFG.`, AST, PF
+4. PF: BLK, ORB, STL, `eFG.`
+5. C: BLK, TRB, `X2P.`, `eFG.`, `FT.`
+
+
+## 1.3. Scenario
+
+As a data analyst for the Chicago Bulls, an NBA (National Basketball Association) team that had a dismal season in the previous NBA season, finishing 27th out of 30 based on win-loss record, I can speak from experience. The team's $118 million player contract budget for the next season places them 26th out of 30 teams. Finding the top five starting players that the Chicago Bulls can afford, one for each position, has been given to the data analyst by the team's general manager. The analyst may select players that were already on the Chicago Bulls roster the previous year, but they must prove that they are worth the financial commitment. The goal is to find the best players while not using up all the team's budget on just these five players, as there is still a full team roster to consider.
+
+
+## 1.4. Aims and Objective
+
+The aim of this project is to produce top players in each position using different game metrics that define their play. Objectively, a linear regression model is developed to find the most consistent shooter in game by considering the number of points they scored in previous session in respect to stats such as expected 2points, 3points, free throws, offensive rebounds, and assists. 
+
+
+## 1.5. Libraries 
+
+1. tidyverse: The tidyverse is a collection of open source packages for the R programming language introduced by Hadley Wickham and his team that "share an underlying design philosophy, grammar, and data structures" of tidy data. (tidyverse, 2023)
+2. dplyr: dplyr is a grammar of data manipulation, providing a consistent set of verbs that help you solve the most common data manipulation challenges: (tidyverse, 2023)
+3. tidyr: tidyr is new package that makes it easy to “tidy” your data. Tidy data is data that's easy to work with: it's easy to munge (with dplyr), visualise (with ggplot2 or ggvis) and model (with R's hundreds of modelling packages). The two most important properties of tidy data are: Each column is a variable. (tidyverse, 2023)
+4. ggplot: ggplot2 is an open-source data visualization package for the statistical programming language R. ggplot2 is declaratively and efficient in creating data visualization based on The Grammar of Graphics.   (tidyverse, 2023)
+5. broom: The broom package takes the messy output of built-in functions in R, such as lm, nls, or t.test, and turns them into tidy tibbles. (Wickham, 2023)
+6. naniar: naniar provides data structures and functions that facilitate the plotting of missing values and examination of imputations. This allows missing data dependencies to be explored with minimal deviation from the common work patterns of 'ggplot2' and tidy data. (Tierney, 2023)
+7. caret: The caret package (short for Classification And REgression Training) contains functions to streamline the model training process for complex regression and classification problems. (Cran, 2023)
+
+
+```{r libraries}
+#importing necessary libraries
+library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(broom)
+library(naniar)
+library(caret)
+```
+
+## 1.6. Reading the datasets
+
+Three datasets are read from the data folder, one containing the statistics of the players which includes numerous continuous variables including from Age to PTS and few categorical variable such as Player name,  Position and Team they play on. The other two dataset has the name of the team and their payroll, and name of the player and their salaries respectively.
+
+```{r}
+#reading csv files individually for naming convention and better understanding data
+salary <- read.csv('data/2018-19_nba_player-salaries.csv')
+payroll <- read.csv('data/2019-20_nba_team-payroll.csv')
+statistics <- read.csv('data/2018-19_nba_player-statistics.csv')
+
+#since statistics has the player data, this will be the main focus of analysis
+str(statistics)
+```
+# 2. Data Cleaning
+
+The data cleaning step includes removing of repetitive obseravations and imputing or removing Null variables.
+
+```{r}
+#count duplicates
+n_occur <- data.frame(table(statistics$player_name))
+n_occur[n_occur$Freq > 1,]
+
+#keep the duplicates in a dataframe
+n_occur <- statistics[statistics$player_name %in% n_occur$Var1[n_occur$Freq > 1],]
+n_occur
+
+# Filter the rows to keep only team= TOT
+TOTs <- n_occur %>% filter(Tm == "TOT")
+
+#subtract the duplicates from the original dataframe, this removes all the duplicates
+statistics <- anti_join(statistics, n_occur, by = "player_name")
+
+#add the TOTs dataframe which contains the duplicates where team was TOTAL 
+statistics <- rbind(statistics, TOTs)
+
+statistics
+#filter(statistics, player_name %in% c("Ivica Zubac"))
+
+
+```
+
+There were numerous Null values in the 'expected' column of its corresponding variables. Those were tried to imputed using the formula provided in the code. However, there were observations where both the nominator and denominator were 0 which still gave Null values and thus were removed.  
+
+```{r null value}
+#Checking for null values
+na_count <-sapply(statistics, function(y) sum(length(which(is.na(y)))))
+na_count
+
+# Define columns to impute and their corresponding denominator columns
+columns_to_impute <- c("FG.", "X3P.", "X2P.", "FT.")
+nominator_columns <- c("FG", "X3P",  "X2P", "FT")
+denominator_columns <- c("FGA", "X3PA", "X2PA", "FTA" )
+
+# Iterate through each column and impute NA values using the relative formula
+for (i in seq_along(columns_to_impute)) {
+  column <- columns_to_impute[i]
+  nominator_column <- nominator_columns[i]
+  denominator_column <- denominator_columns[i]
+  
+  na_index <- which(is.na(statistics[[column]]))
+  statistics <- statistics[-na_index, ]
+  
+  statistics[[column]] <- ifelse(is.na(statistics[[column]]), 
+                                  statistics[[denominator_column]] / statistics[[denominator_column]],
+                                  statistics[[column]])
+  
+  # Checking for null values
+  na_count <-sapply(statistics, function(y) sum(length(which(is.na(y)))))
+  #cat(sprintf("Null count after imputing column %s: %d\n", column, na_count))
+}
+
+na_count <-sapply(statistics, function(y) sum(length(which(is.na(y)))))
+na_count
+
+```
+
+#3. Exploratory Data Analysis
+
+Only players who have played more than 10 games are used in the analysis to determine the consistency of performance. The continuous variables are tested against each other to find outliers. But given the data is of players who have performed in games throughout the season, outliers are not removed as it may contain data of players having exceptionally well or below par season.
+
+```{r}
+#Finding outliers
+# Select columns with relevant values
+numeric_cols <- c("Age", "G", "GS", "MP", "FG", "FGA", "FG.","X3P", "X3PA", "X3P.", "X2P", "X2PA", "X2P.", "eFG.", "FT", "FTA", "FT.", "ORB", "DRB", "TRB", "AST", "STL", "BLK", "TOV", "PF", "PTS")
+
+# Filter for players who have played at least 10 games
+player_stats_filtered <- statistics[statistics$G >= 10,]
+
+# Create a boxplot for each column
+boxplot_data1 <- stack(player_stats_filtered[numeric_cols])
+ggplot(boxplot_data1, aes(x = ind, y = values)) +
+  geom_boxplot() +
+  xlab("") +
+  ylab("Value") +
+  ggtitle("Boxplots of Player Statistics")
+```
+
+Boxplot to find which position of play score more points on average.
+
+```{r}
+# difference in points scored by position
+ggplot(data = player_stats_filtered, aes(x = Pos, y = PTS, fill = Pos)) +
+  geom_boxplot()
+```
+
+```{r}
+# Compute the number of outliers for each column
+outliers <- sapply(player_stats_filtered[numeric_cols], function(x) {
+  q1 <- quantile(x, 0.25)
+  q3 <- quantile(x, 0.75)
+  iqr <- q3 - q1
+  sum(x < q1 - 1.5*iqr | x > q3 + 1.5*iqr, na.rm = TRUE)
+})
+
+# Display the number of outliers for each column
+outliers
+
+#Outliers is not removed because if contains data of player having exceptional season or sub-par season
+```
+Plotting a boxplot to view the distribution of data, which shows that most of the columns are skewed to the right and some show non symmetirc bimodal distribution.
+
+```{r}
+#distribution of variable
+player_stats_filtered %>%
+  select(numeric_cols) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram() +
+  facet_wrap(~variable, scales = "free") +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Histograms of Player Statistics to check the spread of data")
+```
+
+Pairwise Complete Obs means is used to find the correlation between numeric variables which are used to computed for each variable using all non-missing values, and co-variances or correlations for each pair of variables are computed using observations with no missing data for that pair.(tibco, 2015) However, contradictory to the finding, the linear model in purposed to development uses PTS which in-terms is highly correlated to many statistics and thus the highly correlated variables are not removed. However, PTS is the only variable used among the highly correlated variables. 
+
+```{r}
+cor_matrix <- cor(player_stats_filtered[numeric_cols], use="pairwise.complete.obs")
+cor_matrix
+
+# Convert the dataset to a matrix and remove non-numeric columns
+player_stats_matrix <- as.matrix(player_stats_filtered[, numeric_cols])
+
+# Use the findCorrelation function to find highly correlated variables
+highly_correlated <- findCorrelation(cor_matrix, cutoff = 0.9, names = TRUE, exact = ncol(cor_matrix) < 100)
+highly_correlated
+
+#highly_correlated columns are not removed as data provided by columns such as PTS and MP are very important factor of the game
+```
+
+# 4. Data Modelling
+
+Splitting the statistics dataset (player_stat_filter which contains the data of player who has more than 10 games played) to train and test.
+
+```{r}
+set.seed(123) # for reproducibility
+train_index <- createDataPartition(player_stats_filtered$PTS, p = 0.8, list = FALSE)
+train_data <- player_stats_filtered[train_index, ]
+test_data <- player_stats_filtered[-train_index, ]
+
+```
+
+## 4.1 Linear Regression
+
+A linear regression model is created to predict PTS scored in respect to expected 2 points, expected 3 points, expected field goals, assists and offensive rebounds.
+
+```{r}
+#create linear regression model to 
+# Select variables of interest
+model_shooter <- train_data %>%
+  select(ORB, `FG.`,`X2P.`, `X3P.`, `eFG.`, AST, PTS)
+
+# Fit a linear model 
+model_shooter <- lm(PTS ~ ORB+`FG.`+`X2P.`+`X3P.`+`eFG.`+ AST, data = train_data)
+
+tidy(model_shooter, conf.int = TRUE)
+```
+
+The intercept coefficient indicates that certain amount is added or subtracted to the interpreted variable when all other variables remain zero or constant.
+
+```{r}
+# Print the summary of the model
+summary(model_shooter)
+```
+
+The coefficients column shows the estimated regression coefficients for each predictor variable. A positive estimate for ORB, X2P., to AST suggests that an increase in those variables is associated with an increase in points scored. A negative estimate for FG. indicates that increase in estimated Field goal is related to decrease in points scored.
+
+Each predictor variable's t-value and related p-value columns show its statistical significance. At a 95% confidence level, a p-value of less than 0.05 indicates that the relevant predictor variable is statistically important in predicting the response variable. All predictor variables in this model, with the exception of X2P, are statistically significant.
+
+The R-squared value of 0.7454 shows that the predictor variables in the model account for 74.54% of the variability in the response variable. The total model is very significant, as indicated by the F-statistic of 224.9 and the extremely low p-value, and the adjusted R-squared value of 0.742, which indicates that the model fits the data well.
+
+### 4.1.1. Checking the independence of model
+
+The durbinWatsonTest.
+
+```{r}
+#check independence
+car::durbinWatsonTest(model_shooter)
+```
+
+The car::durbinWatsonTest() function in R tests for autocorrelation in a linear regression model. In this case, the model_shooter model was tested and the result shows a Durbin-Watson (DW) test statistic of 1.907441 with a p-value of 0.386. The null hypothesis of the test is that there is no autocorrelation in the residuals of the model (i.e., the errors are independently and identically distributed). Since the p-value is greater than the significance level of 0.05, there is not enough evidence to reject the null hypothesis of no autocorrelation. (rdrr, 2023)
+
+### 4.1.2. Homoscedasticity
+
+```{r}
+res <- residuals(model_shooter)
+fitted <- predict(model_shooter)
+
+ggplot(data = NULL, aes(x = fitted, y = res)) +
+  geom_point(colour = "dodgerblue") + 
+  geom_hline(yintercept = 0, colour = "red", linetype = "dashed")
+```
+When the error term—the "noise" or random disturbance in the relationship between the independent variables and the dependent variable—is the same at all independent variable values, the condition is referred to as homoscedastic. The plot suggests sign of Heteroskedasticity which implies that the finding of regression mode may be invalid. (scribbr, 2023)
+
+###4.1.3. Normality
+
+```{r}
+ggplot(data = NULL, aes(x = res)) +
+  geom_histogram(colour = "black", fill = "dodgerblue", binwidth = 10)
+```
+The normality assumption means that the collected data follows a normal distribution, which is essential for assumption. The histogram looks fairly normal. (statisticssolutions, 2023)
+
+```{r}
+ggplot(data = NULL, aes(sample = res)) +
+  stat_qq() + stat_qq_line()
+```
+There are longer tails at both ends, this requires transformation of data.
+
+
+### 4.1.4. Linearity
+
+```{r}
+car::avPlots(model_shooter)
+```
+
+## 4.2 Model prediction
+
+Using the model to predict top 5 most consistent shooter.
+
+```{r}
+# predict PTS using the linear model
+predicted <- predict(model_shooter, newdata = test_data)
+
+# get the index of the player with the highest predicted PTS
+index_highest_pts <- which.max(predicted)
+
+# get the name of the player with the highest predicted PTS
+player_stats_filtered[index_highest_pts, "player_name"]
+
+# create a new data frame with predicted values
+df_pred <- player_stats_filtered %>%
+  select(player_name, Pos, Tm, ORB, `FG.`,`X2P.`, `X3P.`, `eFG.`, AST, PTS) %>%
+  mutate(pred_PTS = predict(model_shooter, .))
+
+# sort by predicted PTS and select top 5
+top5 <- df_pred %>%
+  arrange(desc(pred_PTS)) %>%
+  top_n(5, pred_PTS)
+
+# print the top 5 players
+top5
+```
+
+The top 5 most consistent scorers as predicted by the model suggests those players whom most play as Point Guard.
+
+
+# 5. Analysing top players in each position
+
+There are 5 positions in a basketball court with each having their own responsibility. To find the best player in each of the different position, different stats  are analysed and figured corresponding to their role in the game. (BUCKLEY, 2022)
+The players are ranked by their mean Z score. The number of standard deviations a data point deviates from the distribution's mean is expressed as a z-score (also known as a standard score). A score is subtracted from the population mean, and the result is divided by the population standard deviation. The calculated value shows how many standard deviations the unique score deviates from the mean.
+
+```{r}
+#getting the abbreviations of player positions as well as knowing what player who play in more position is denoted as
+unique_positions <- unique(statistics$Pos)
+print(unique_positions)
+```
+## 5.1. Top players in respect to their position
+
+### 5.1.1 Point Guard
+
+Ability to assist, turnover, steal, and score 3 points is what makes a top point guard. Z score measurement is performed based on these variables to produce the top point guards.
+```{r}
+#finding the top Point Guard using Z score
+top_point_guards <- player_stats_filtered %>%
+  filter(Pos=="PG") %>%
+  select(player_name, Tm, AST, TOV, STL, `X3P.`, PTS) %>%
+  mutate(across(-c(player_name, Tm), scale, center = TRUE, scale = TRUE)) %>%
+  rowwise() %>%
+  mutate(player_mean_zscore = mean(c_across(-c(player_name, Tm)), na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(player_mean_zscore)) %>%
+  top_n(10, player_mean_zscore)
+
+top_point_guards
+```
+
+Ranking the output to scale the difference.
+
+```{r}
+ggplot(top_point_guards, aes(x = Tm, y = player_mean_zscore, color = player_mean_zscore)) +
+  geom_point(size = 3) +
+  geom_text(aes(label = player_name), vjust = 1) +
+  scale_color_gradient(low = "green", high = "red") +
+  ggtitle("Top Point Guards") +
+  xlab("Teams")+
+  ylab("Peformance Index")+
+  theme_classic()
+
+```
+### 5.1.2.Shooting Guard
+
+Ability to effectively score 2, 3 points, and field goals  is what makes a top shooting guard. Z score measurement is performed based on these variables to produce the top shooting guards.
+
+```{r}
+#top shooting guard
+# Filter for shooting guards
+top_shooting_guards <- player_stats_filtered %>%
+  filter(Pos %in% c("SG", "SG-PF", "SG-SF")) %>%
+  select(player_name, Tm, `X3P.`, `FG.`, `eFG.`) %>%
+  mutate(across(-c(player_name, Tm), scale, center = TRUE, scale = TRUE)) %>%
+  rowwise() %>%
+  mutate(player_mean_zscore = mean(c_across(-c(player_name, Tm)), na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(player_mean_zscore)) %>%
+  top_n(10, player_mean_zscore)
+
+top_shooting_guards
+```
+
+Ranking the output to scale the difference.
+
+```{r}
+ggplot(top_shooting_guards, aes(x = Tm, y = player_mean_zscore, color = player_mean_zscore)) +
+  geom_point(size=3) +
+  geom_text(aes(label = player_name), vjust = -1, size = 3) +
+  labs(x = "Team", y = "Mean z-score") +
+  ggtitle("Top 10 Shooting Guards") +
+  theme_classic()
+
+```
+### 5.1.3. Small Forward
+
+Ability to turn over the play, assist, score 3 points, and filed goals is what makes a top small forward. Z score measurement is performed based on these variables to produce the top small forwards.
+
+```{r}
+#top  10 small forward
+top_small_forwards <- player_stats_filtered %>%
+  filter(Pos %in% c("SF", "SF-SG")) %>%
+  select(player_name, Tm, TRB, `FG.`, X3P, `eFG.`, AST, PF) %>%
+  mutate(across(-c(player_name, Tm), scale, center = TRUE, scale = TRUE)) %>%
+  rowwise() %>%
+  mutate(player_mean_zscore = mean(c_across(-c(player_name, Tm)), na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(player_mean_zscore)) %>%
+  top_n(10, player_mean_zscore)
+
+top_small_forwards
+```
+
+Ranking the players to scale the difference.
+
+```{r}
+ggplot(top_small_forwards, aes(x = Tm, y = player_mean_zscore, color = player_mean_zscore)) +
+  geom_point(size = 3) +
+  geom_text(aes(label = player_name), vjust = 1) +
+  scale_color_gradient(low = "black", high = "red") +
+  ggtitle("Top 10 Small Forwards") +
+  xlab("Teams")+
+  ylab("Peformance Index")+
+  theme_classic()
+```
+### 5.1.4. Power Forwards
+
+Ability to block, get offensive rebounds and steal is what makes a top power forward. Z score measurement is performed based on these variables to produce the top power forwards.
+
+```{r}
+#top power forwards
+top_power_forwards <- player_stats_filtered %>%
+  filter(Pos %in% c("PF", "PF-SF", "PF-C")) %>%
+  select(player_name, Tm, BLK, ORB, STL, `eFG.`) %>%
+  mutate(across(-c(player_name, Tm), scale, center = TRUE, scale = TRUE)) %>%
+  rowwise() %>%
+  mutate(player_mean_zscore = mean(c_across(-c(player_name, Tm)), na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(player_mean_zscore)) %>%
+  top_n(10, player_mean_zscore)
+
+top_power_forwards
+```
+
+Ranking the players to scale the difference.
+
+```{r}
+ggplot(top_power_forwards, aes(x = Tm, y = player_mean_zscore, color = player_mean_zscore)) +
+  geom_point(size = 3) +
+  geom_text(aes(label = player_name), vjust = 1) +
+  scale_color_gradient(low = "pink", high = "skyblue") +
+  ggtitle("Top 10 Power Forwards") +
+  xlab("Teams")+
+  ylab("Peformance Index")+
+  theme_classic()
+```
+### 5.1.5. Top Centre 
+
+Ability to block, turnover, score 2 points, and effectively score is what makes a top center. Z score measurement is performed based on these variables to produce the top center. 
+
+```{r}
+#top center
+top_center <- player_stats_filtered %>%
+  filter(Pos %in% c("C", "C-PF")) %>%
+  select(player_name, Tm, BLK, TRB, `X2P.`, `eFG.`, `FT.` ) %>%
+  mutate(across(-c(player_name, Tm), scale, center = TRUE, scale = TRUE)) %>%
+  rowwise() %>%
+  mutate(player_mean_zscore = mean(c_across(-c(player_name, Tm)), na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(player_mean_zscore)) %>%
+  top_n(10, player_mean_zscore)
+
+top_center
+```
+
+Ranking the players to scale the difference. 
+
+```{r}
+ggplot(top_center, aes(x = Tm, y = player_mean_zscore, color = player_mean_zscore)) +
+  geom_point(size = 3) +
+  geom_text(aes(label = player_name), vjust = 1) +
+  scale_color_gradient(low = "orange", high = "red") +
+  ggtitle("Top 10 Point Guards") +
+  xlab("Teams")+
+  ylab("Peformance Index")+
+  theme_classic()
+```
+Now the top players from each position is acquired, their payrolls is evaluated to find the top players the team could afford.
+
+```{r}
+#creating a list with top player names and getting their salary
+#Pos = Point Guard
+Pos1 <- top_point_guards$player_name
+
+Pay1 <- salary %>%
+  arrange(player_name) %>%
+  filter(player_name %in% Pos1) %>%
+  select(player_name, salary)
+Pay1
+
+#Pos = Shooting Guard
+Pos2 <- top_shooting_guards$player_name
+
+Pay2 <- salary %>%
+  arrange(player_name) %>%
+  filter(player_name %in% Pos2) %>%
+  select(player_name, salary)
+Pay2
+
+#Pos = Small Forward
+Pos3 <- top_small_forwards$player_name
+
+Pay3 <- salary %>%
+  arrange(player_name) %>%
+  filter(player_name %in% Pos3) %>%
+  select(player_name, salary)
+Pay3
+
+#Pos = Power Forward
+Pos4 <- top_power_forwards$player_name
+
+Pay4 <- salary %>%
+  arrange(player_name) %>%
+  filter(player_name %in% Pos4) %>%
+  select(player_name, salary)
+Pay4
+
+#Pos = Center
+Pos5 <- top_center$player_name
+
+Pay5 <- salary %>%
+  arrange(player_name) %>%
+  filter(player_name %in% Pos5) %>%
+  select(player_name, salary)
+
+Pay5
+```
+## 5.2 Budget check
+
+Testing for payers whose sum of wages fit the payroll. The total budget is split into 60-40, where 60% of budget is allocated for the top 5 players the team can sign.
+
+```{r}
+#getting budget
+payroll
+budget <- payroll %>% 
+  filter(team_id == 24) %>%
+  select(salary)
+budget
+
+budget <- as.numeric(gsub("\\$|\\,", "", budget$salary))
+budget
+
+#creating signing budget (60% of total payroll)
+budget <- 0.6*budget
+budget
+
+
+#getting one player each from the top positions and getting the sum of their salary
+team_wage <- Pay1$salary[5] + Pay2$salary[3] + Pay3$salary[3] + Pay4$salary[4] +Pay5$salary[2]
+team_wage
+
+#checking if salary exceeds set budget
+budget-team_wage >0
+```
+
+## 5.3 Team Recommendation
+
+After the analysis, a team of top players in each of their respective position is comprised.The team consists of players within the top 10 players in each position generated by the z score mean whilst also containing a player who popped up in the top 5 consistent shooter given by linear regression model.  
+
+```{r}
+team <- c(Pay1$player_name[5] ,Pay2$player_name[3], Pay3$player_name[3] , Pay4$player_name[4], Pay5$player_name[2])
+team
+
+team_df <- data.frame(player_name = team, stringsAsFactors = FALSE)
+player_pos_df <- left_join(team_df, player_stats_filtered %>% select(player_name, Pos), by = "player_name")
+player_pos_df
+```
+The team consists of James Harden as Point Guard, Dwayne Bacon as Shot Guard, Danilo Gallinari as Small Forward, Jonathan Issac as Power Forward and Brook Lopez as Center. The combined salary of the team still falls under 60 percent of the team's total payroll.
+
+# 6.Conclusion and Future Work
+
+The aim of the project was to perform statistical analysis to build a team of top players in each position played in a basketball court for the NBA team Chicago Bulls while staying under the budget. Z score measurement was performed on each of the position to acquire top players. A linear regression model was developed to figure out the most consistent shooter which did not quiet prove effective.
+The report provides various insights in players statistics and the dataset used to highlight those statistics. This report however could prove that lack of proper knowledge on the sport itself and what statistics to look out for to properly analyse players in their respective position affect the overall result of the analysis. Further analysis on the performance of the team to find what exactly were they lacking could also give an idea as to what players in what position to look out for.
+
+# 7. Reference
+
+BUCKLEY, Z., 2022. Ranking the Most Dominant NBA Stars at Every Position. [Online] 
+Available at: https://bleacherreport.com/articles/10043997-ranking-the-most-dominant-nba-stars-at-every-position
+[Accessed 5 may 2023].
+
+Cran, 2023. A Short Introduction to the caret Package. [Online] 
+Available at: https://cran.r-project.org/web/packages/caret/vignettes/caret.html
+[Accessed 5 may 2023].
+
+Logan, R. G., Mokray, W. G. & Donald, L. W., 2023. britannica. [Online] 
+Available at: https://www.britannica.com/sports/basketball
+[Accessed 5 May 2023].
+
+NBA, 2019. NBA. [Online] 
+Available at: https://www.nba.com/
+[Accessed 5 May 2023].
+
+NEVIL, S., 2023. How to Calculate Z-Score and Its Meaning. [Online] 
+Available at: https://www.investopedia.com/terms/z/zscore.asp#:~:text=By-,What%20Is%20Z%2DScore%3F,identical%20to%20the%20mean%20score.
+[Accessed 5 may 2023].
+
+rdrr, 2023. durbinWatsonTest. [Online] 
+Available at: https://rdrr.io/cran/car/man/durbinWatsonTest.html
+[Accessed 5 may 2023].
+
+scribbr, 2023. What is homoscedasticity. [Online] 
+Available at: https://www.scribbr.com/frequently-asked-questions/what-is-homoscedasticity/#:~:text=Homoscedasticity%2C%20or%20homogeneity%20of%20variances,biased%20and%20skewed%20test%20results.
+[Accessed 5 may 2023].
+
+statisticssolutions, 2023. Testing of Assumptions. [Online] 
+Available at: https://www.statisticssolutions.com/free-resources/directory-of-statistical-analyses/testing-of-assumptions/#:~:text=Q%2DQ%20plot%3A%20Most%20researchers%20use,data%20will%20be%20normally%20distributed.
+[Accessed 5 may 2023].
+
+tibco, 2015. Correlation, Variance, and Covariance (Matrices). [Online] 
+Available at: https://docs.tibco.com/pub/enterprise-runtime-for-R/6.0.0/doc/html/Language_Reference/stats/cor.html#:~:text=pairwise.,missing%20data%20for%20that%20pair.
+[Accessed 5 may 2023].
+
+tidyverse, 2023. tidyverse. [Online] 
+Available at: https://www.tidyverse.org/
+[Accessed 5 May 2023].
+
+tidyverse, 2023. tidyverse. [Online] 
+Available at: https://dplyr.tidyverse.org/
+[Accessed 5 may 2023].
+
+Tierney, N., 2023. Getting Started with naniar. [Online] 
+Available at: https://cran.r-project.org/web/packages/naniar/vignettes/getting-started-w-naniar.html
+[Accessed 5 may 2023].
+
+Wickham, H., 2023. Cran. [Online] 
+Available at: https://cran.r-project.org/web/packages/broom/vignettes/broom.html
+[Accessed 5 may 2023].
+
+
+
